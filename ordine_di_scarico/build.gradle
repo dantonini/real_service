@@ -1,0 +1,109 @@
+plugins {
+	id "org.xtext.xtend" version "1.0.5"
+  }
+
+apply plugin: 'java'
+
+def javaVersion = JavaVersion.VERSION_1_8;
+sourceCompatibility = javaVersion;
+targetCompatibility = javaVersion; // defaults to sourceCompatibility
+
+repositories {
+  jcenter()
+}
+
+configurations {
+  provided
+  ideAnnotationProcessor
+}
+
+sourceSets {
+  main {
+    compileClasspath += configurations.provided
+    runtimeClasspath += configurations.provided
+  }
+}
+
+def processorLib = 'com.fhoster.livebase:cloudlet-spi-annotation-processor:+' //use latest version
+def ideProcessorLib = "${processorLib}:ide@jar"
+def includedLibs = "$buildDir/copyDeps/lib"
+def generatedBlueprints = "$buildDir/generatedBlueprints"
+
+dependencies {
+  provided processorLib
+  provided files("$rootDir/spi/gestione-magazzino.jar")
+  ideAnnotationProcessor ideProcessorLib
+
+  compile 'org.eclipse.xtend:org.eclipse.xtend.lib:2.9.0'
+  compile 'com.itextpdf:itextpdf:5.5.9'
+  compile 'joda-time:joda-time:2.9.3'
+}
+
+task copyDeps(type : Copy) {
+  from (configurations.runtime - configurations.provided)
+  into includedLibs
+}
+  
+task enforceVersion << {
+  def foundVersion = JavaVersion.current();
+  if (foundVersion != javaVersion)
+      throw new IllegalStateException("Wrong Java version; required is "
+          + javaVersion + ", but found " + foundVersion);
+}
+
+compileJava.dependsOn(enforceVersion)
+
+jar {
+  manifest {
+    def imports = []
+    imports << 'com.fhoster.livebase.cloudlet' // cloudlet SPI
+    imports << 'org.apache.log4j' //logging framework
+    
+    attributes('Manifest-Version': '1.0',
+      'Require-Bundle':'org.apache.felix.framework',
+      'Bundle-ClassPath': '.,' + (configurations.runtime - configurations.provided).collect { file(includedLibs).name+'/'+it.name }.join(','),
+      'Bundle-Version':'1.0.0',
+      'Bundle-ManifestVersion':'2',
+      'Plugin-Name': project.name,
+      'Bundle-SymbolicName': project.name,
+      'Import-Package': imports.join(',')
+      )
+  }
+  from file(includedLibs).parentFile
+  dependsOn copyDeps, processResources
+}
+
+
+
+
+apply plugin: 'eclipse'
+
+eclipse {
+  classpath {
+    plusConfigurations += [configurations.provided]
+  }
+}
+
+project.eclipse.jdt.file.withProperties { it.'org.eclipse.jdt.core.compiler.processAnnotations' = 'enabled' }
+
+    project.tasks.eclipseJdt.doLast {
+        def aptPrefs = project.file('.settings/org.eclipse.jdt.apt.core.prefs')
+        project.mkdir(aptPrefs.parentFile)
+        aptPrefs.text = """\
+  eclipse.preference.version=1
+  org.eclipse.jdt.apt.aptEnabled=true
+  org.eclipse.jdt.apt.genSrcDir=${generatedBlueprints - "${projectDir}/"}
+  org.eclipse.jdt.apt.reconcileEnabled=true
+  """.stripIndent()
+
+  project.file('.factorypath').withWriter {
+    new groovy.xml.MarkupBuilder(it).'factorypath'{
+      factorypathentry(
+        kind: 'EXTJAR',
+        id: configurations.ideAnnotationProcessor.singleFile,
+        enabled: true,
+        runInBatchMode: false,
+        ){}
+    }
+  }
+}
