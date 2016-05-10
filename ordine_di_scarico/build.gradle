@@ -4,7 +4,7 @@ plugins {
 
 apply plugin: 'java'
 
-def javaVersion = JavaVersion.VERSION_1_8;
+def javaVersion = JavaVersion.VERSION_1_7;
 sourceCompatibility = javaVersion;
 targetCompatibility = javaVersion; // defaults to sourceCompatibility
 
@@ -13,7 +13,8 @@ repositories {
 }
 
 configurations {
-  provided
+  provided //eventuali librerie da escludere
+  forceRuntime //librerie da includere necessariamente
   ideAnnotationProcessor
 }
 
@@ -34,13 +35,14 @@ dependencies {
   provided files("$rootDir/spi/gestione-magazzino.jar")
   ideAnnotationProcessor ideProcessorLib
 
-  compile 'org.eclipse.xtend:org.eclipse.xtend.lib:2.9.0'
+  compile 'org.eclipse.xtend:org.eclipse.xtend.lib:2.9.2'
   compile 'com.itextpdf:itextpdf:5.5.9'
   compile 'joda-time:joda-time:2.9.3'
+  forceRuntime 'com.google.guava:guava:14.0.1'
 }
 
 task copyDeps(type : Copy) {
-  from (configurations.runtime - configurations.provided)
+  from (configurations.runtime - configurations.provided + configurations.forceRuntime)
   into includedLibs
 }
   
@@ -61,7 +63,7 @@ jar {
     
     attributes('Manifest-Version': '1.0',
       'Require-Bundle':'org.apache.felix.framework',
-      'Bundle-ClassPath': '.,' + (configurations.runtime - configurations.provided).collect { file(includedLibs).name+'/'+it.name }.join(','),
+      'Bundle-ClassPath': '.,' + (configurations.runtime - configurations.provided + configurations.forceRuntime).collect { file(includedLibs).name+'/'+it.name }.join(','),
       'Bundle-Version':'1.0.0',
       'Bundle-ManifestVersion':'2',
       'Plugin-Name': project.name,
