@@ -1,5 +1,6 @@
 package com.realservice
 
+import com.fhoster.livebase.CloudletEventHandler
 import com.fhoster.livebase.cloudlet.FileInfo
 import com.fhoster.livebase.cloudlet.HandlerException
 import com.fhoster.livebase.cloudlet.OrdinediscaricoFormActionContext
@@ -8,13 +9,11 @@ import com.fhoster.livebase.cloudlet.PluginActionResult
 import com.fhoster.livebase.cloudlet.SpiOrdinediscaricoFormActionHandlerCrea_e_salva_ddt
 import java.io.File
 import org.joda.time.LocalDate
-import com.fhoster.livebase.CloudletEventHandler
 
 @CloudletEventHandler
 class GeneraDocumentoDiTrasporto implements SpiOrdinediscaricoFormActionHandlerCrea_e_salva_ddt{
 	
 	override doAction(OrdinediscaricoFormActionContext ctx) throws HandlerException {
-		
 		val ddt = convert(ctx.form)
 		val pdf = generaPdf(ddt)
 		ctx.form.setdocumento_di_trasporto( new FileInfo(pdf,pdf.name, 'application/pdf') )
